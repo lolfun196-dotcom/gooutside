@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>台北捷運路線輪盤</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #0f172a, #1e3a8a);
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      position: relative;
+      width: 500px;
+    }
+    canvas {
+      border-radius: 50%;
+      background: #1e293b;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+      display: block;
+      margin: 0 auto;
+    }
+    #pointer {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-bottom: 30px solid #facc15;
+      z-index: 10;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #38bdf8;
+    }
+    button {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #0ea5e9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="pointer"></div>
+    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+    <button id="spinButton">抽路線</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const result = document.getElementById("result");
+    const btn = document.getElementById("spinButton");
+    const radius = canvas.width / 2;
+
+    const lines = ["淡水信義線", "板南線", "中和新蘆線", "松山新店線", "文湖線"];
+    const colorMap = {
+      "淡水信義線": ["#dc2626", "#b91c1c"],
+      "板南線": ["#2563eb", "#1e40af"],
+      "中和新蘆線": ["#facc15", "#ca8a04"],
+      "松山新店線": ["#16a34a", "#065f46"],
+      "文湖線": ["#92400e", "#78350f"]
+    };
+
+    const stationsMap = {
+      "淡水信義線": ["淡水", "紅樹林", "竹圍", "關渡", "忠義", "復興崗", "新北投", "北投", "奇岩", "唭哩岸", "石牌", "明德", "芝山", "士林", "劍潭", "圓山", "民權西路", "雙連", "中山", "台北車站", "台大醫院", "中正紀念堂", "東門", "大安森林公園", "大安", "信義安和", "台北101/世貿", "象山"],
+      "板南線": ["頂埔", "永寧", "土城", "海山", "亞東醫院", "府中", "板橋", "新埔", "江子翠", "龍山寺", "西門", "善導寺", "忠孝新生", "忠孝復興", "忠孝敦化", "國父紀念館", "市政府", "永春", "後山埤", "昆陽", "南港", "南港展覽館"],
+      "中和新蘆線": ["南勢角", "景安", "永安市場", "頂溪", "古亭", "東門", "忠孝新生", "松江南京", "行天宮", "中山國小", "民權西路", "大橋頭", "台北橋", "菜寮", "三重", "先嗇宮", "頭前庄", "新莊", "輔大", "丹鳳", "迴龍"],
+      "松山新店線": ["新店", "新店區公所", "七張", "小碧潭", "大坪林", "景美", "萬隆", "公館", "台電大樓", "古亭", "中正紀念堂", "小南門", "西門", "北門", "中山", "松江南京", "南京復興", "台北小巨蛋", "南京三民", "松山"],
+      "文湖線": ["動物園", "木柵", "萬芳社區", "萬芳醫院", "辛亥", "麟光", "六張犁", "科技大樓", "大安", "忠孝復興", "南京復興", "中山國中", "松山機場", "大直", "劍南路", "西湖", "港墘", "文德", "內湖", "大湖公園", "葫洲", "東湖", "南港軟體園區", "南港展覽館"]
+    };
+
+    let items = lines;
+    let isFinal = false;
+    let rotation = 0;
+    let spinning = false;
+    let currentColors = null;
+
+    function drawWheel() {
+      const arc = (2 * Math.PI) / items.length;
+      for (let i = 0; i < items.length; i++) {
+        const angle = i * arc;
+        ctx.beginPath();
+        let fill = "#ccc";
+        if (currentColors) {
+          fill = i % 2 === 0 ? currentColors[0] : currentColors[1];
+        } else {
+          const gray = 180 + i * 10;
+          fill = `rgb(${gray},${gray},${gray})`;
+        }
+        ctx.fillStyle = fill;
+        ctx.moveTo(radius, radius);
+        ctx.arc(radius, radius, radius, angle, angle + arc, false);
+        ctx.fill();
+
+        ctx.save();
+        ctx.fillStyle = "#000";
+        ctx.translate(radius + Math.cos(angle + arc / 2) * radius * 0.65,
+                      radius + Math.sin(angle + arc / 2) * radius * 0.65);
+        ctx.rotate(angle + arc / 2 + Math.PI / 2);
+        ctx.textAlign = "center";
+        ctx.font = items.length <= 20 ? "16px sans-serif" : "12px sans-serif";
+        ctx.fillText(items[i], 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function spinWheel() {
+      if (spinning) return;
+      spinning = true;
+      result.textContent = "";
+      const arc = (2 * Math.PI) / items.length;
+      const spins = 5 + Math.random() * 5;
+      const finalAngle = rotation + spins * 2 * Math.PI;
+      const duration = 3000;
+      const startTime = performance.now();
+
+      function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        rotation = rotation + (finalAngle - rotation) * ease;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(radius, radius);
+        ctx.rotate(rotation);
+        ctx.translate(-radius, -radius);
+        drawWheel();
+        ctx.restore();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          spinning = false;
+          const normalizedRotation = (rotation % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+          const pointerAngle = (3 * Math.PI / 2 - normalizedRotation + 2 * Math.PI) % (2 * Math.PI);
+          const index = Math.floor(pointerAngle / arc);
+          const selected = items[index];
+          result.textContent = `🎯 本次抽到：${selected}`;
+
+          if (!isFinal) {
+            items = stationsMap[selected];
+            isFinal = true;
+            currentColors = colorMap[selected] || null;
+            btn.textContent = "抽站名";
+            rotation = 0;
+            setTimeout(() => {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              drawWheel();
+              result.textContent += "，請再轉一次！";
+            }, 1000);
+          }
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    drawWheel();
+    btn.addEventListener("click", spinWheel);
+  </script>
+</body>
+</html>
